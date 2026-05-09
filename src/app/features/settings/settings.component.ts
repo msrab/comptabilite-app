@@ -24,6 +24,35 @@ import { User } from '../../core/models';
     <div class="page">
       <h2 class="page-title">Parametres</h2>
 
+      <!-- Informations ASBL -->
+      <mat-card class="settings-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>business</mat-icon>
+          <mat-card-title>Informations de l'ASBL</mat-card-title>
+          <mat-card-subtitle>Apparaissent dans les documents &quot;Comptes Annuels&quot;</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Dénomination de l'ASBL</mat-label>
+            <input matInput [(ngModel)]="asblName" placeholder="Ex: Association XYZ ASBL">
+            <mat-icon matSuffix>corporate_fare</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Numéro d'entreprise BCE</mat-label>
+            <input matInput [(ngModel)]="bceNumber" placeholder="Ex: 0123.456.789">
+            <mat-icon matSuffix>tag</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Siège social (adresse complète)</mat-label>
+            <input matInput [(ngModel)]="asblAddress" placeholder="Ex: Rue de la Loi 1, 1000 Bruxelles">
+            <mat-icon matSuffix>location_on</mat-icon>
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="saveAsblInfo()">
+            <mat-icon>save</mat-icon> Enregistrer
+          </button>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Categories -->
       <mat-card class="settings-card">
         <mat-card-header>
@@ -270,6 +299,9 @@ export class SettingsComponent implements OnInit {
   currentUser: User | null = null;
   categories: string[] = [];
   newCategoryName = '';
+  asblName = '';
+  bceNumber = '';
+  asblAddress = '';
 
   get isAdmin(): boolean { return this.currentUser?.role === 'admin'; }
 
@@ -283,6 +315,9 @@ export class SettingsComponent implements OnInit {
   ngOnInit(): void {
     this.currentUser = this.auth.currentUser();
     this.categories = this.settingsService.getCategories();
+    this.asblName    = this.settingsService.getAsblName();
+    this.bceNumber   = this.settingsService.getBceNumber();
+    this.asblAddress = this.settingsService.getAsblAddress();
 
     this.ratesForm = this.fb.group({
       dailyAllowance: [this.settingsService.getDailyAllowance(), [Validators.required, Validators.min(0)]],
@@ -321,6 +356,13 @@ export class SettingsComponent implements OnInit {
       this.settingsService.deleteCategory(cat);
       this.categories = this.settingsService.getCategories();
     }
+  }
+
+  saveAsblInfo(): void {
+    this.settingsService.setAsblName(this.asblName.trim());
+    this.settingsService.setBceNumber(this.bceNumber.trim());
+    this.settingsService.setAsblAddress(this.asblAddress.trim());
+    this.snackBar.open('Informations ASBL enregistrées', 'Fermer', { duration: 3000 });
   }
 
   saveRates(): void {

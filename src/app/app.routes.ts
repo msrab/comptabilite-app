@@ -18,6 +18,7 @@ export const routes: Routes = [
       { path: 'transactions', loadComponent: () => import('./features/transactions/transactions.component').then(m => m.TransactionsComponent) },
       { path: 'debts', loadComponent: () => import('./features/debts/debts.component').then(m => m.DebtsComponent) },
       { path: 'budget', loadComponent: () => import('./features/budget/budget.component').then(m => m.BudgetComponent) },
+      { path: 'comptes-annuels', loadComponent: () => import('./features/comptes-annuels/comptes-annuels.component').then(m => m.ComptesAnnuelsComponent) },
       { path: 'settings', loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) },
     ]
   },

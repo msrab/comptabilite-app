@@ -6,6 +6,9 @@ const KEYS = {
   dailyAllowance:   'asbl_daily_allowance',
   kmRateCar:        'asbl_km_rate_car',
   kmRateBike:       'asbl_km_rate_bike',
+  asblName:         'asbl_org_name',
+  bceNumber:        'asbl_bce_number',
+  asblAddress:      'asbl_address',
 };
 
 const DEFAULTS = {
@@ -67,5 +70,28 @@ export class SettingsService {
 
   setKmRateBike(val: number): void {
     localStorage.setItem(KEYS.kmRateBike, String(val));
+  }
+
+  // ── Informations ASBL ──────────────────────────────────────────────────────
+
+  getAsblName(): string {
+    return localStorage.getItem(KEYS.asblName) ?? '';
+  }
+  setAsblName(val: string): void {
+    localStorage.setItem(KEYS.asblName, val);
+  }
+
+  getBceNumber(): string {
+    return localStorage.getItem(KEYS.bceNumber) ?? '';
+  }
+  setBceNumber(val: string): void {
+    localStorage.setItem(KEYS.bceNumber, val);
+  }
+
+  getAsblAddress(): string {
+    return localStorage.getItem(KEYS.asblAddress) ?? '';
+  }
+  setAsblAddress(val: string): void {
+    localStorage.setItem(KEYS.asblAddress, val);
   }
 }

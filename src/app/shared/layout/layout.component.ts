@@ -315,6 +315,7 @@ export class LayoutComponent {
     { label: 'Transactions', icon: 'swap_horiz', route: '/transactions' },
     { label: 'Dettes & Créances', icon: 'account_balance_wallet', route: '/debts' },
     { label: 'Budget', icon: 'bar_chart', route: '/budget' },
+    { label: 'Comptes Annuels', icon: 'description', route: '/comptes-annuels' },
   ];
   orgNavItems: NavItem[] = [
     { label: 'Contacts', icon: 'contacts', route: '/contacts' },
