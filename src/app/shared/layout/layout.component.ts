@@ -1,9 +1,10 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '../../core/services/auth.service';
+import { DataLoaderService } from '../../core/services/data-loader.service';
 
 interface NavItem {
   label: string;
@@ -305,7 +306,7 @@ interface NavItem {
     }
   `]
 })
-export class LayoutComponent {
+export class LayoutComponent implements OnInit {
   sidenavOpen = signal(true);
 
   mainNavItems: NavItem[] = [
@@ -326,7 +327,10 @@ export class LayoutComponent {
     return [...this.mainNavItems, ...this.financeNavItems, ...this.orgNavItems];
   }
 
-  constructor(public auth: AuthService, private router: Router) {}
+  constructor(public auth: AuthService, private router: Router, private dataLoader: DataLoaderService) {}
+
+  ngOnInit(): void { this.dataLoader.loadAll().catch(() => {}); }
+
 
   toggleSidenav(): void { this.sidenavOpen.update(v => !v); }
 

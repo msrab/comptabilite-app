@@ -90,6 +90,12 @@ import { DebtFormComponent } from '../../shared/debt-form/debt-form.component';
             </mat-form-field>
           </div>
 
+          <!-- Avertissement exercice clôturé -->
+          <div *ngIf="isSelectedYearClosed" class="year-closed-banner">
+            <mat-icon>lock</mat-icon>
+            <span>L'exercice <strong>{{ selectedYear }}</strong> est clôturé. Vous ne pouvez plus enregistrer de transactions pour cette année.</span>
+          </div>
+
           <!-- Catégorie -->
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Catégorie *</mat-label>
@@ -239,7 +245,7 @@ import { DebtFormComponent } from '../../shared/debt-form/debt-form.component';
 
       <mat-dialog-actions>
         <button class="action-btn cancel" mat-dialog-close>Annuler</button>
-        <button class="action-btn save" [disabled]="form.invalid || (showNewDebtForm && newDebtForm?.invalid)" (click)="save()">
+        <button class="action-btn save" [disabled]="form.invalid || isSelectedYearClosed || (showNewDebtForm && newDebtForm?.invalid)" (click)="save()">
           <mat-icon>save</mat-icon>
           Enregistrer la transaction
         </button>
@@ -386,6 +392,9 @@ import { DebtFormComponent } from '../../shared/debt-form/debt-form.component';
         &:disabled { opacity: 0.45; cursor: not-allowed; }
       }
     }
+    .year-closed-banner { display: flex; align-items: center; gap: 10px; background: #fff3cd; border: 1.5px solid #f59e0b; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #92400e; margin-bottom: 4px;
+      mat-icon { color: #d97706; font-size: 20px; width: 20px; height: 20px; flex-shrink: 0; }
+    }
   `]
 })
 export class TransactionFormDialogComponent implements OnInit {
@@ -407,6 +416,12 @@ export class TransactionFormDialogComponent implements OnInit {
   // Constantes catégories spéciales
   readonly CAT_ALLOWANCE = CAT_ALLOWANCE;
   readonly CAT_KM        = CAT_KM;
+
+  get selectedYear(): number {
+    const d = this.form?.get('date')?.value;
+    return d ? new Date(d).getFullYear() : new Date().getFullYear();
+  }
+  get isSelectedYearClosed(): boolean { return this.settingsService.isYearClosed(this.selectedYear); }
 
   // Défraiement bénévole
   allowancePerson = '';
@@ -522,8 +537,9 @@ export class TransactionFormDialogComponent implements OnInit {
     reader.readAsDataURL(file);
   }
 
-  save(): void {
+  async save(): Promise<void> {
     if (this.form.invalid) return;
+    if (this.isSelectedYearClosed) return;
 
     const result = this.form.value;
 
@@ -531,7 +547,7 @@ export class TransactionFormDialogComponent implements OnInit {
       if (!this.newDebtForm || this.newDebtForm.invalid) return;
       const nd = this.newDebtForm.value;
       const txAmount = result.amount || 0;
-      const newDebt = this.debtService.add({
+      const newDebt = await this.debtService.add({
         type: nd.type,
         description: nd.description,
         amount: nd.amount,

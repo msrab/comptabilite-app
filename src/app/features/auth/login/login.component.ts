@@ -246,12 +246,13 @@ export class LoginComponent {
   onSubmit(): void {
     if (this.loginForm.invalid) return;
     const { username, password } = this.loginForm.value;
-    const success = this.auth.login(username, password);
-    if (success) {
-      this.loginError = false;
-      this.router.navigate(['/']);
-    } else {
-      this.loginError = true;
-    }
+    this.auth.login(username, password).then(success => {
+      if (success) {
+        this.loginError = false;
+        this.router.navigate(['/']);
+      } else {
+        this.loginError = true;
+      }
+    });
   }
 }

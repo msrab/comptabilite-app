@@ -1,97 +1,60 @@
 import { Injectable } from '@angular/core';
 import { TRANSACTION_CATEGORIES } from '../models/category.model';
-
-const KEYS = {
-  categories:       'asbl_categories',
-  dailyAllowance:   'asbl_daily_allowance',
-  kmRateCar:        'asbl_km_rate_car',
-  kmRateBike:       'asbl_km_rate_bike',
-  asblName:         'asbl_org_name',
-  bceNumber:        'asbl_bce_number',
-  asblAddress:      'asbl_address',
-};
-
-const DEFAULTS = {
-  dailyAllowance: 10.00,   // € / jour bénévole
-  kmRateCar:       0.3562, // € / km voiture (barème belge 2024)
-  kmRateBike:      0.27,   // € / km vélo
-};
+import { ApiService } from './api.service';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
+  private data: Record<string, string> = {};
 
-  // ── Catégories ─────────────────────────────────────────────────────────────
+  constructor(private api: ApiService) {}
+
+  async load(): Promise<void> {
+    try { this.data = await this.api.get<Record<string, string>>('/api/settings'); } catch {}
+  }
+
+  private getVal(key: string, def = ''): string { return this.data[key] ?? localStorage.getItem(key) ?? def; }
+
+  private async setVal(key: string, val: string): Promise<void> {
+    this.data[key] = val;
+    await this.api.put('/api/settings', { [key]: val }).catch(() => {});
+  }
 
   getCategories(): string[] {
-    const stored = localStorage.getItem(KEYS.categories);
-    return stored ? JSON.parse(stored) : [...TRANSACTION_CATEGORIES];
+    const v = this.getVal('asbl_categories');
+    return v ? JSON.parse(v) : [...TRANSACTION_CATEGORIES];
   }
-
-  saveCategories(cats: string[]): void {
-    localStorage.setItem(KEYS.categories, JSON.stringify(cats));
-  }
-
-  addCategory(name: string): void {
+  async saveCategories(cats: string[]): Promise<void> { await this.setVal('asbl_categories', JSON.stringify(cats)); }
+  async addCategory(name: string): Promise<void> {
     const cats = this.getCategories();
-    if (!cats.includes(name.trim())) {
-      cats.push(name.trim());
-      this.saveCategories(cats);
-    }
+    if (!cats.includes(name.trim())) { cats.push(name.trim()); await this.saveCategories(cats); }
   }
+  async deleteCategory(name: string): Promise<void> { await this.saveCategories(this.getCategories().filter(c => c !== name)); }
 
-  deleteCategory(name: string): void {
-    this.saveCategories(this.getCategories().filter(c => c !== name));
-  }
+  getDailyAllowance(): number { return parseFloat(this.getVal('asbl_daily_allowance', '10')); }
+  async setDailyAllowance(v: number): Promise<void> { await this.setVal('asbl_daily_allowance', String(v)); }
+  getKmRateCar(): number { return parseFloat(this.getVal('asbl_km_rate_car', '0.3562')); }
+  async setKmRateCar(v: number): Promise<void> { await this.setVal('asbl_km_rate_car', String(v)); }
+  getKmRateBike(): number { return parseFloat(this.getVal('asbl_km_rate_bike', '0.27')); }
+  async setKmRateBike(v: number): Promise<void> { await this.setVal('asbl_km_rate_bike', String(v)); }
 
-  // ── Taux kilométrique & défraiement ────────────────────────────────────────
+  getAsblName(): string { return this.getVal('asbl_org_name'); }
+  async setAsblName(v: string): Promise<void> { await this.setVal('asbl_org_name', v); }
+  getBceNumber(): string { return this.getVal('asbl_bce_number'); }
+  async setBceNumber(v: string): Promise<void> { await this.setVal('asbl_bce_number', v); }
+  getAsblAddress(): string { return this.getVal('asbl_address'); }
+  async setAsblAddress(v: string): Promise<void> { await this.setVal('asbl_address', v); }
 
-  getDailyAllowance(): number {
-    const v = localStorage.getItem(KEYS.dailyAllowance);
-    return v !== null ? parseFloat(v) : DEFAULTS.dailyAllowance;
+  // ── Clôture d'exercice ──────────────────────────────────────────────────────
+  getClosedYears(): number[] {
+    const v = this.getVal('asbl_closed_years');
+    return v ? JSON.parse(v) : [];
   }
-
-  setDailyAllowance(val: number): void {
-    localStorage.setItem(KEYS.dailyAllowance, String(val));
+  isYearClosed(year: number): boolean { return this.getClosedYears().includes(year); }
+  async closeYear(year: number): Promise<void> {
+    const years = this.getClosedYears();
+    if (!years.includes(year)) { years.push(year); await this.setVal('asbl_closed_years', JSON.stringify(years)); }
   }
-
-  getKmRateCar(): number {
-    const v = localStorage.getItem(KEYS.kmRateCar);
-    return v !== null ? parseFloat(v) : DEFAULTS.kmRateCar;
-  }
-
-  setKmRateCar(val: number): void {
-    localStorage.setItem(KEYS.kmRateCar, String(val));
-  }
-
-  getKmRateBike(): number {
-    const v = localStorage.getItem(KEYS.kmRateBike);
-    return v !== null ? parseFloat(v) : DEFAULTS.kmRateBike;
-  }
-
-  setKmRateBike(val: number): void {
-    localStorage.setItem(KEYS.kmRateBike, String(val));
-  }
-
-  // ── Informations ASBL ──────────────────────────────────────────────────────
-
-  getAsblName(): string {
-    return localStorage.getItem(KEYS.asblName) ?? '';
-  }
-  setAsblName(val: string): void {
-    localStorage.setItem(KEYS.asblName, val);
-  }
-
-  getBceNumber(): string {
-    return localStorage.getItem(KEYS.bceNumber) ?? '';
-  }
-  setBceNumber(val: string): void {
-    localStorage.setItem(KEYS.bceNumber, val);
-  }
-
-  getAsblAddress(): string {
-    return localStorage.getItem(KEYS.asblAddress) ?? '';
-  }
-  setAsblAddress(val: string): void {
-    localStorage.setItem(KEYS.asblAddress, val);
+  async reopenYear(year: number): Promise<void> {
+    await this.setVal('asbl_closed_years', JSON.stringify(this.getClosedYears().filter(y => y !== year)));
   }
 }

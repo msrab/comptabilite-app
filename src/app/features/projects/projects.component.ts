@@ -161,6 +161,23 @@ export class ProjectFormDialogComponent implements OnInit {
               <mat-progress-bar [value]="getBudgetPercent(project)" [color]="getBudgetPercent(project) > 90 ? 'warn' : 'primary'"></mat-progress-bar>
               <small>{{ getBudgetPercent(project) | number:'1.0-0' }}% utilisé</small>
             </div>
+            <div class="actual-finances">
+              <div class="fin-row income">
+                <mat-icon>arrow_upward</mat-icon>
+                <span>Entrées réelles</span>
+                <strong>{{ getActualIncome(project.id) | currency:'EUR':'symbol':'1.2-2':'fr' }}</strong>
+              </div>
+              <div class="fin-row expense">
+                <mat-icon>arrow_downward</mat-icon>
+                <span>Dépenses réelles</span>
+                <strong>{{ getActualExpense(project.id) | currency:'EUR':'symbol':'1.2-2':'fr' }}</strong>
+              </div>
+              <div class="fin-row balance" [class.positive]="getActualIncome(project.id) - getActualExpense(project.id) >= 0" [class.negative]="getActualIncome(project.id) - getActualExpense(project.id) < 0">
+                <mat-icon>account_balance</mat-icon>
+                <span>Solde</span>
+                <strong>{{ (getActualIncome(project.id) - getActualExpense(project.id)) | currency:'EUR':'symbol':'1.2-2':'fr' }}</strong>
+              </div>
+            </div>
             <div class="project-stats">
               <span><mat-icon>receipt</mat-icon> {{ getTxCount(project.id) }} transaction(s)</span>
             </div>
@@ -202,6 +219,17 @@ export class ProjectFormDialogComponent implements OnInit {
     .project-meta { display: flex; gap: 12px; font-size: 12px; color: #888; margin-bottom: 8px; span { display: inline-flex; align-items: center; gap: 4px; mat-icon { font-size: 14px; width: 14px; height: 14px; } } }
     .budget-info { background: #f5f5f5; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
     .budget-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .actual-finances { border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden; margin-bottom: 8px; }
+    .fin-row { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 13px;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; }
+      span { flex: 1; }
+      strong { font-weight: 600; }
+      &.income  { background: #f0fdf4; color: #15803d; mat-icon { color: #16a34a; } }
+      &.expense { background: #fff7f7; color: #b91c1c; mat-icon { color: #dc2626; } }
+      &.balance { background: #f8fafc; border-top: 1px solid #e5e7eb;
+        &.positive strong { color: #15803d; } &.negative strong { color: #b91c1c; }
+      }
+    }
     .project-stats { display: flex; gap: 12px; font-size: 12px; color: #888; span { display: inline-flex; align-items: center; gap: 4px; mat-icon { font-size: 14px; width: 14px; height: 14px; } } }
   `]
 })
@@ -250,6 +278,10 @@ export class ProjectsComponent implements OnInit {
 
   getActualExpense(projectId: string): number {
     return this.transactionService.getByProject(projectId).filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
+  }
+
+  getActualIncome(projectId: string): number {
+    return this.transactionService.getByProject(projectId).filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
   }
 
   getBudgetPercent(project: Project): number {

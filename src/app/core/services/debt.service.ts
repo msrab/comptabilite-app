@@ -1,54 +1,49 @@
 import { Injectable } from '@angular/core';
-import { Debt, DebtStatus } from '../models';
-import { StorageService } from './storage.service';
-
-const KEY = 'asbl_debts';
+import { Debt } from '../models';
+import { ApiService } from './api.service';
 
 @Injectable({ providedIn: 'root' })
 export class DebtService {
-  constructor(private storage: StorageService) {}
+  private cache: Debt[] = [];
 
-  getAll(): Debt[] { return this.storage.get<Debt>(KEY); }
-  getById(id: string): Debt | undefined { return this.getAll().find(d => d.id === id); }
-  getByPerson(personId: string): Debt[] { return this.getAll().filter(d => d.personId === personId); }
-  getByClient(clientId: string): Debt[] { return this.getAll().filter(d => d.clientId === clientId); }
-  getDebts(): Debt[] { return this.getAll().filter(d => d.type === 'debt'); }
-  getCredits(): Debt[] { return this.getAll().filter(d => d.type === 'credit'); }
-  getPendingDebts(): Debt[] { return this.getAll().filter(d => d.type === 'debt' && d.status !== 'paid' && d.status !== 'cancelled'); }
-  getPendingCredits(): Debt[] { return this.getAll().filter(d => d.type === 'credit' && d.status !== 'paid' && d.status !== 'cancelled'); }
+  constructor(private api: ApiService) {}
 
-  getRemainingAmount(debt: Debt): number {
-    return Math.max(0, debt.amount - debt.paidAmount);
+  async load(): Promise<void> { this.cache = await this.api.get<Debt[]>('/api/debts'); }
+
+  getAll(): Debt[] { return this.cache; }
+  getById(id: string): Debt | undefined { return this.cache.find(d => d.id === id); }
+  getByPerson(pid: string): Debt[] { return this.cache.filter(d => (d as any).personId === pid); }
+  getByClient(cid: string): Debt[] { return this.cache.filter(d => (d as any).clientId === cid || (d as any).contactId === cid); }
+  getDebts(): Debt[] { return this.cache.filter(d => d.type === 'debt'); }
+  getCredits(): Debt[] { return this.cache.filter(d => d.type === 'credit'); }
+  getPendingDebts(): Debt[] { return this.cache.filter(d => d.type === 'debt' && d.status !== 'paid' && d.status !== 'cancelled'); }
+  getPendingCredits(): Debt[] { return this.cache.filter(d => d.type === 'credit' && d.status !== 'paid' && d.status !== 'cancelled'); }
+  getRemainingAmount(debt: Debt): number { return Math.max(0, debt.amount - (debt.paidAmount || 0)); }
+
+  async add(data: Omit<Debt, 'id' | 'createdAt'>): Promise<Debt> {
+    const d = await this.api.post<Debt>('/api/debts', data);
+    this.cache.unshift(d);
+    return d;
+  }
+
+  async update(id: string, data: Partial<Debt>): Promise<void> {
+    const d = await this.api.put<Debt>(`/api/debts/${id}`, data);
+    const idx = this.cache.findIndex(x => x.id === id);
+    if (idx >= 0) this.cache[idx] = d;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.api.delete(`/api/debts/${id}`);
+    this.cache = this.cache.filter(d => d.id !== id);
   }
 
   addPayment(id: string, amount: number): void {
-    const list = this.getAll();
-    const idx = list.findIndex(d => d.id === id);
+    const idx = this.cache.findIndex(d => d.id === id);
     if (idx >= 0) {
-      list[idx].paidAmount = Math.min(list[idx].amount, list[idx].paidAmount + amount);
-      if (list[idx].paidAmount >= list[idx].amount) {
-        list[idx].status = 'paid';
-      } else if (list[idx].paidAmount > 0) {
-        list[idx].status = 'partial';
-      }
-      this.storage.save(KEY, list);
+      this.cache[idx].paidAmount = Math.min(this.cache[idx].amount, (this.cache[idx].paidAmount || 0) + amount);
+      const status = this.cache[idx].paidAmount >= this.cache[idx].amount ? 'paid' : 'partial';
+      this.cache[idx].status = status as any;
+      this.update(id, { paidAmount: this.cache[idx].paidAmount, status: status as any });
     }
   }
-
-  add(data: Omit<Debt, 'id' | 'createdAt'>): Debt {
-    const list = this.getAll();
-    const item: Debt = { ...data, id: this.id(), createdAt: new Date() };
-    this.storage.save(KEY, [...list, item]);
-    return item;
-  }
-
-  update(id: string, data: Partial<Debt>): void {
-    const list = this.getAll();
-    const idx = list.findIndex(d => d.id === id);
-    if (idx >= 0) { list[idx] = { ...list[idx], ...data }; this.storage.save(KEY, list); }
-  }
-
-  delete(id: string): void { this.storage.save(KEY, this.getAll().filter(d => d.id !== id)); }
-
-  private id(): string { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
 }

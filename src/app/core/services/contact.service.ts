@@ -1,35 +1,47 @@
 import { Injectable } from '@angular/core';
-import { StorageService } from './storage.service';
 import { Contact } from '../models/contact.model';
-
-const KEY = 'contacts';
+import { ApiService } from './api.service';
 
 @Injectable({ providedIn: 'root' })
 export class ContactService {
-  constructor(private storage: StorageService) {}
+  private cache: Contact[] = [];
 
-  getAll(): Contact[] { return this.storage.get<Contact>(KEY) || []; }
+  constructor(private api: ApiService) {}
 
-  getById(id: string): Contact | undefined { return this.getAll().find(c => c.id === id); }
-
-  getClients(): Contact[] { return this.getAll().filter(c => c.roles.includes('client')); }
-
-  getMembers(): Contact[] { return this.getAll().filter(c => c.roles.includes('member')); }
-
-  add(data: Omit<Contact, 'id' | 'createdAt'>): Contact {
-    const list = this.getAll();
-    const item: Contact = { ...data, id: this.id(), createdAt: new Date() };
-    this.storage.save(KEY, [...list, item]);
-    return item;
+  async load(): Promise<void> {
+    const raw: any[] = await this.api.get('/api/contacts');
+    this.cache = raw.map(r => ({ ...r, roles: this.getRoles(r) }));
   }
 
-  update(id: string, data: Partial<Contact>): void {
-    const list = this.getAll();
-    const idx = list.findIndex(c => c.id === id);
-    if (idx >= 0) { list[idx] = { ...list[idx], ...data }; this.storage.save(KEY, list); }
+  private getRoles(r: any): string[] {
+    const roles: string[] = [];
+    if (r.isMember) roles.push('member');
+    if (r.isClient) roles.push('client');
+    return roles;
   }
 
-  delete(id: string): void { this.storage.save(KEY, this.getAll().filter(c => c.id !== id)); }
+  getAll(): Contact[] { return this.cache; }
+  getById(id: string): Contact | undefined { return this.cache.find(c => c.id === id); }
+  getClients(): Contact[] { return this.cache.filter(c => c.roles?.includes('client')); }
+  getMembers(): Contact[] { return this.cache.filter(c => c.roles?.includes('member')); }
 
-  private id(): string { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+  async add(data: Omit<Contact, 'id' | 'createdAt'>): Promise<Contact> {
+    const payload = { ...data, isMember: data.roles?.includes('member'), isClient: data.roles?.includes('client') };
+    const c: any = await this.api.post('/api/contacts', payload);
+    const contact = { ...c, roles: this.getRoles(c) };
+    this.cache.push(contact);
+    return contact;
+  }
+
+  async update(id: string, data: Partial<Contact>): Promise<void> {
+    const payload = { ...data, isMember: data.roles?.includes('member'), isClient: data.roles?.includes('client') };
+    const c: any = await this.api.put(`/api/contacts/${id}`, payload);
+    const idx = this.cache.findIndex(x => x.id === id);
+    if (idx >= 0) this.cache[idx] = { ...c, roles: this.getRoles(c) };
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.api.delete(`/api/contacts/${id}`);
+    this.cache = this.cache.filter(c => c.id !== id);
+  }
 }

@@ -1,31 +1,33 @@
 import { Injectable } from '@angular/core';
 import { Project } from '../models';
-import { StorageService } from './storage.service';
-
-const KEY = 'asbl_projects';
+import { ApiService } from './api.service';
 
 @Injectable({ providedIn: 'root' })
 export class ProjectService {
-  constructor(private storage: StorageService) {}
+  private cache: Project[] = [];
 
-  getAll(): Project[] { return this.storage.get<Project>(KEY); }
-  getById(id: string): Project | undefined { return this.getAll().find(p => p.id === id); }
-  getByClient(clientId: string): Project[] { return this.getAll().filter(p => p.clientId === clientId); }
+  constructor(private api: ApiService) {}
 
-  add(data: Omit<Project, 'id' | 'createdAt'>): Project {
-    const list = this.getAll();
-    const item: Project = { ...data, id: this.id(), createdAt: new Date() };
-    this.storage.save(KEY, [...list, item]);
-    return item;
+  async load(): Promise<void> { this.cache = await this.api.get<Project[]>('/api/projects'); }
+
+  getAll(): Project[] { return this.cache; }
+  getById(id: string): Project | undefined { return this.cache.find(p => p.id === id); }
+  getByClient(clientId: string): Project[] { return this.cache.filter(p => (p as any).clientId === clientId); }
+
+  async add(data: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
+    const p = await this.api.post<Project>('/api/projects', data);
+    this.cache.unshift(p);
+    return p;
   }
 
-  update(id: string, data: Partial<Project>): void {
-    const list = this.getAll();
-    const idx = list.findIndex(p => p.id === id);
-    if (idx >= 0) { list[idx] = { ...list[idx], ...data }; this.storage.save(KEY, list); }
+  async update(id: string, data: Partial<Project>): Promise<void> {
+    const p = await this.api.put<Project>(`/api/projects/${id}`, data);
+    const idx = this.cache.findIndex(x => x.id === id);
+    if (idx >= 0) this.cache[idx] = p;
   }
 
-  delete(id: string): void { this.storage.save(KEY, this.getAll().filter(p => p.id !== id)); }
-
-  private id(): string { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+  async delete(id: string): Promise<void> {
+    await this.api.delete(`/api/projects/${id}`);
+    this.cache = this.cache.filter(p => p.id !== id);
+  }
 }

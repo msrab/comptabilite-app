@@ -241,13 +241,13 @@ export class DebtsComponent implements OnInit {
       width: '680px',
       data: { debt, contacts: this.contacts, transactions: this.transactions }
     });
-    ref.afterClosed().subscribe(result => {
+    ref.afterClosed().subscribe(async result => {
       if (!result) return;
       if (debt) {
-        this.debtService.update(debt.id, result);
+        await this.debtService.update(debt.id, result);
         this.snackBar.open('Mis à jour', 'Fermer', { duration: 3000 });
       } else {
-        this.debtService.add(result);
+        await this.debtService.add(result);
         this.snackBar.open('Ajouté', 'Fermer', { duration: 3000 });
       }
       this.load();
@@ -256,9 +256,10 @@ export class DebtsComponent implements OnInit {
 
   delete(debt: Debt): void {
     if (confirm(`Supprimer "\${debt.description}" ?`)) {
-      this.debtService.delete(debt.id);
-      this.snackBar.open('Supprimé', 'Fermer', { duration: 3000 });
-      this.load();
+      this.debtService.delete(debt.id).then(() => {
+        this.snackBar.open('Supprimé', 'Fermer', { duration: 3000 });
+        this.load();
+      });
     }
   }
 

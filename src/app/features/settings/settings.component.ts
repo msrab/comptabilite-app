@@ -227,6 +227,34 @@ import { User } from '../../core/models';
         </mat-card-content>
       </mat-card>
 
+      <!-- Cloture d'exercice -->
+      <mat-card class="settings-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>lock_clock</mat-icon>
+          <mat-card-title>Clôture d'exercice comptable</mat-card-title>
+          <mat-card-subtitle>Un exercice clôturé ne permet plus d'enregistrer de nouvelles transactions</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="years-list">
+            <div *ngFor="let year of availableYears" class="year-row">
+              <div class="year-info">
+                <mat-icon [style.color]="isYearClosed(year) ? '#c62828' : '#2e7d32'">{{ isYearClosed(year) ? 'lock' : 'lock_open' }}</mat-icon>
+                <span class="year-label">Exercice {{ year }}</span>
+                <span class="year-badge" [class.closed]="isYearClosed(year)" [class.open]="!isYearClosed(year)">
+                  {{ isYearClosed(year) ? 'Clôturé' : 'Ouvert' }}
+                </span>
+              </div>
+              <button *ngIf="!isYearClosed(year)" mat-stroked-button color="warn" (click)="closeYear(year)">
+                <mat-icon>lock</mat-icon> Clôturer
+              </button>
+              <button *ngIf="isYearClosed(year)" mat-stroked-button color="primary" (click)="reopenYear(year)">
+                <mat-icon>lock_open</mat-icon> Réouvrir
+              </button>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Data management -->
       <mat-card class="settings-card">
         <mat-card-header>
@@ -288,6 +316,18 @@ import { User } from '../../core/models';
       &.viewer { background: #f3e5f5; color: #6a1b9a; }
     }
     .data-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+
+    /* Year closing */
+    .years-list { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+    .year-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 10px; }
+    .year-info { display: flex; align-items: center; gap: 10px;
+      mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    }
+    .year-label { font-size: 15px; font-weight: 500; }
+    .year-badge { padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      &.open   { background: #e8f5e9; color: #2e7d32; }
+      &.closed { background: #ffebee; color: #c62828; }
+    }
   `]
 })
 export class SettingsComponent implements OnInit {
@@ -302,6 +342,8 @@ export class SettingsComponent implements OnInit {
   asblName = '';
   bceNumber = '';
   asblAddress = '';
+  closedYears: number[] = [];
+  availableYears: number[] = [];
 
   get isAdmin(): boolean { return this.currentUser?.role === 'admin'; }
 
@@ -339,9 +381,34 @@ export class SettingsComponent implements OnInit {
     });
 
     this.loadUsers();
+
+    // Années disponibles : de l'année courante -1 jusqu'à 5 ans en arrière
+    const currentYear = new Date().getFullYear();
+    this.availableYears = Array.from({ length: 6 }, (_, i) => currentYear - i);
+    this.closedYears = this.settingsService.getClosedYears();
   }
 
-  loadUsers(): void { this.users = this.auth.getUsers(); }
+  isYearClosed(year: number): boolean { return this.settingsService.isYearClosed(year); }
+
+  closeYear(year: number): void {
+    if (confirm(`Cl\u00f4turer d\u00e9finitivement l'exercice ${year} ? Aucune transaction ne pourra plus \u00eatre enregistr\u00e9e pour cette ann\u00e9e.`)) {
+      this.settingsService.closeYear(year).then(() => {
+        this.closedYears = this.settingsService.getClosedYears();
+        this.snackBar.open(`Exercice ${year} cl\u00f4tur\u00e9`, 'Fermer', { duration: 3000 });
+      });
+    }
+  }
+
+  reopenYear(year: number): void {
+    if (confirm(`R\u00e9ouvrir l'exercice ${year} ?`)) {
+      this.settingsService.reopenYear(year).then(() => {
+        this.closedYears = this.settingsService.getClosedYears();
+        this.snackBar.open(`Exercice ${year} r\u00e9ouvert`, 'Fermer', { duration: 3000 });
+      });
+    }
+  }
+
+  loadUsers(): void { this.auth.getUsers().then((users: any[]) => this.users = users); }
 
   addCategory(): void {
     if (!this.newCategoryName.trim()) return;
