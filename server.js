@@ -7,8 +7,8 @@ const PORT = process.env.PORT || 3000;
 const DIST_FOLDER = path.join(__dirname, 'dist/comptabilite-asbl/browser');
 const API_URL = process.env.API_URL || 'http://localhost:4000';
 
-// Servir les fichiers statiques du build Angular
-app.use(express.static(DIST_FOLDER));
+// Servir les fichiers statiques du build Angular (sauf index.html — réécrit ci-dessous)
+app.use(express.static(DIST_FOLDER, { index: false }));
 
 // Pour toutes les routes, renvoyer index.html avec l'URL API injectée
 app.get('*', (req, res) => {
